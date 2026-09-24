@@ -6,6 +6,20 @@ from datetime import datetime
 from .base import BaseApiClient, ApiError
 
 
+def _as_number(value: Any, default: float = 0.0) -> float:
+    """Return ``value`` as a number, treating ``None`` as ``default``.
+
+    The uzsuv.uz API sends ``null`` instead of ``0`` for amounts that do not
+    apply to a period: a correction that was never issued, a payment that was
+    never made, a volume that was never metered. Arithmetic on those values
+    raises ``TypeError``, so every numeric field coming from the API has to
+    pass through here before it is used.
+    """
+    if value is None:
+        return default
+    return float(value)
+
+
 class WaterApiClient(BaseApiClient):
     """API client for ASKU UZ Water (uzsuv.uz).
 
@@ -89,7 +103,7 @@ class WaterApiClient(BaseApiClient):
         if pay_hst.get("data"):
             p = pay_hst["data"][0]
             last_payment = {
-                "amount": p["psum"] / 100,
+                "amount": _as_number(p["psum"]) / 100,
                 "date": p["pdt"][:10],
             }
 
@@ -110,9 +124,9 @@ class WaterApiClient(BaseApiClient):
 
         for row in sld_hst:
             if row.get("prd_id") == current_prd_id:
-                current_accrual = (row["chrg"] + row["corr"]) / 100
+                current_accrual = (_as_number(row.get("chrg")) + _as_number(row.get("corr"))) / 100
             elif row.get("prd_id") == last_prd_id:
-                last_accrual = (row["chrg"] + row["corr"]) / 100
+                last_accrual = (_as_number(row.get("chrg")) + _as_number(row.get("corr"))) / 100
 
         # --------------------------------------------------------------
         # CHRG_DTL → consumption (current + last)
@@ -129,9 +143,9 @@ class WaterApiClient(BaseApiClient):
 
             total = 0.0
             for item in resp.get("corr", []):
-                total += float(item.get("om3", 0))
+                total += _as_number(item.get("om3"))
             for item in resp.get("chrg", []):
-                total += float(item.get("om3", 0))
+                total += _as_number(item.get("om3"))
             return total
 
         current_consumption = await _get_consumption(current_prd_id)
@@ -158,7 +172,7 @@ class WaterApiClient(BaseApiClient):
         return {
             "account_id": account_id,
             "current_period": current_period,
-            "balance": sub_prf.get("sld_sum", 0) / 100,
+            "balance": _as_number(sub_prf.get("sld_sum")) / 100,
             "consumption": current_consumption,
             "accrual": current_accrual,
             "last_payment": last_payment,
