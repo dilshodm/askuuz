@@ -5,16 +5,14 @@ from datetime import datetime
 from typing import Any
 
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.update_coordinator import UpdateFailed
 
-from ..base_coordinator import BaseASKUCoordinator, TOKEN_TTL
-from ..api.management import ManagementApiClient
 from ..api.normalize_management import normalize_gas, normalize_management
+from ..kommunal_coordinator import KommunalCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class ManagementDataUpdateCoordinator(BaseASKUCoordinator):
+class ManagementDataUpdateCoordinator(KommunalCoordinator):
     """ASKU Management coordinator (with optional Gas extension)."""
 
     # ------------------------------------------------------------------
@@ -35,8 +33,6 @@ class ManagementDataUpdateCoordinator(BaseASKUCoordinator):
         self._enable_gas = enable_gas
         self._gas_account_id = gas_account_id
 
-        self._yandex_token: str | None = None
-
         super().__init__(
             hass,
             entry_id,
@@ -44,19 +40,6 @@ class ManagementDataUpdateCoordinator(BaseASKUCoordinator):
             password,
             account_id,
         )
-
-    def _create_api_client(self, session) -> ManagementApiClient:
-        return ManagementApiClient(session)
-
-    async def _login(self) -> None:
-        try:
-            result = await self._api.login(self._username, self._password)
-        except Exception as err:
-            raise self._login_error(err) from err
-
-        self._token = result["access_token"]
-        self._yandex_token = result["yandex_token"]
-        self._token_expires_at = self.hass.loop.time() + TOKEN_TTL
 
     async def _fetch_data(self) -> dict[str, Any]:
         assert self._token is not None
