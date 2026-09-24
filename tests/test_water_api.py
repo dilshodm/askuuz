@@ -16,6 +16,7 @@ from datetime import datetime
 from typing import Any, Callable
 
 import pytest
+from api import water
 from api.base import ApiError
 from api.water import WaterApiClient
 
@@ -63,11 +64,11 @@ class TestGetDataNullHandling:
 
     async def test_null_correction_does_not_raise(
         self,
-        freeze_now: Callable[[datetime], None],
+        freeze_clock: Callable[..., None],
         make_client: Callable[..., Any],
     ) -> None:
         """The reported crash: ``corr`` is null when no correction was issued."""
-        freeze_now(NOW)
+        freeze_clock(water, NOW)
         client, _ = make_client(
             build_responses(
                 sld_hst=[{"prd_id": CURRENT_PRD, "chrg": 100_000, "corr": None}],
@@ -80,11 +81,11 @@ class TestGetDataNullHandling:
 
     async def test_null_charge_falls_back_to_correction(
         self,
-        freeze_now: Callable[[datetime], None],
+        freeze_clock: Callable[..., None],
         make_client: Callable[..., Any],
     ) -> None:
         """A null ``chrg`` alongside a real ``corr`` still yields the correction."""
-        freeze_now(NOW)
+        freeze_clock(water, NOW)
         client, _ = make_client(
             build_responses(
                 sld_hst=[{"prd_id": CURRENT_PRD, "chrg": None, "corr": 45_000}],
@@ -97,11 +98,11 @@ class TestGetDataNullHandling:
 
     async def test_both_amounts_null_gives_zero_accrual(
         self,
-        freeze_now: Callable[[datetime], None],
+        freeze_clock: Callable[..., None],
         make_client: Callable[..., Any],
     ) -> None:
         """A period with nothing billed reports zero, not an error."""
-        freeze_now(NOW)
+        freeze_clock(water, NOW)
         client, _ = make_client(
             build_responses(
                 sld_hst=[{"prd_id": CURRENT_PRD, "chrg": None, "corr": None}],
@@ -114,11 +115,11 @@ class TestGetDataNullHandling:
 
     async def test_missing_keys_are_tolerated(
         self,
-        freeze_now: Callable[[datetime], None],
+        freeze_clock: Callable[..., None],
         make_client: Callable[..., Any],
     ) -> None:
         """An absent ``chrg``/``corr`` key behaves like a null one."""
-        freeze_now(NOW)
+        freeze_clock(water, NOW)
         client, _ = make_client(
             build_responses(sld_hst=[{"prd_id": CURRENT_PRD}]),
         )
@@ -129,11 +130,11 @@ class TestGetDataNullHandling:
 
     async def test_null_payment_amount(
         self,
-        freeze_now: Callable[[datetime], None],
+        freeze_clock: Callable[..., None],
         make_client: Callable[..., Any],
     ) -> None:
         """A payment row carrying a null sum reports zero and keeps its date."""
-        freeze_now(NOW)
+        freeze_clock(water, NOW)
         client, _ = make_client(
             build_responses(
                 pay_hst={"data": [{"psum": None, "pdt": "2026-03-01T10:00:00"}]},
@@ -146,11 +147,11 @@ class TestGetDataNullHandling:
 
     async def test_null_metered_volume_is_skipped(
         self,
-        freeze_now: Callable[[datetime], None],
+        freeze_clock: Callable[..., None],
         make_client: Callable[..., Any],
     ) -> None:
         """Null ``om3`` entries contribute nothing instead of raising."""
-        freeze_now(NOW)
+        freeze_clock(water, NOW)
         client, _ = make_client(
             build_responses(
                 chrg_dtl={
@@ -169,11 +170,11 @@ class TestGetDataNullHandling:
 
     async def test_null_balance(
         self,
-        freeze_now: Callable[[datetime], None],
+        freeze_clock: Callable[..., None],
         make_client: Callable[..., Any],
     ) -> None:
         """A null ``sld_sum`` reports a zero balance."""
-        freeze_now(NOW)
+        freeze_clock(water, NOW)
         client, _ = make_client(
             build_responses(sub_prf={"sld_sum": None, "rtpl_sum": 2_500}),
         )
@@ -189,11 +190,11 @@ class TestGetDataCanonicalModel:
 
     async def test_full_payload(
         self,
-        freeze_now: Callable[[datetime], None],
+        freeze_clock: Callable[..., None],
         make_client: Callable[..., Any],
     ) -> None:
         """A complete response maps onto the canonical structure."""
-        freeze_now(NOW)
+        freeze_clock(water, NOW)
         client, _ = make_client(
             build_responses(
                 sld_hst=[
@@ -232,11 +233,11 @@ class TestGetDataCanonicalModel:
 
     async def test_missing_tariff_yields_empty_list(
         self,
-        freeze_now: Callable[[datetime], None],
+        freeze_clock: Callable[..., None],
         make_client: Callable[..., Any],
     ) -> None:
         """Without ``rtpl_sum`` the tariff breakdown is omitted, not faked."""
-        freeze_now(NOW)
+        freeze_clock(water, NOW)
         client, _ = make_client(build_responses(sub_prf={"sld_sum": 250_000}))
 
         result = await client.get_data(token="t", account_id="acc")
@@ -245,11 +246,11 @@ class TestGetDataCanonicalModel:
 
     async def test_no_payment_history(
         self,
-        freeze_now: Callable[[datetime], None],
+        freeze_clock: Callable[..., None],
         make_client: Callable[..., Any],
     ) -> None:
         """An account that never paid reports ``None`` rather than a blank record."""
-        freeze_now(NOW)
+        freeze_clock(water, NOW)
         client, _ = make_client(build_responses(pay_hst={"data": []}))
 
         result = await client.get_data(token="t", account_id="acc")
@@ -258,11 +259,11 @@ class TestGetDataCanonicalModel:
 
     async def test_unknown_periods_are_ignored(
         self,
-        freeze_now: Callable[[datetime], None],
+        freeze_clock: Callable[..., None],
         make_client: Callable[..., Any],
     ) -> None:
         """Rows for other periods leave the current and previous months at zero."""
-        freeze_now(NOW)
+        freeze_clock(water, NOW)
         client, _ = make_client(
             build_responses(
                 sld_hst=[{"prd_id": 2512, "chrg": 999_000, "corr": 0}],
@@ -276,11 +277,11 @@ class TestGetDataCanonicalModel:
 
     async def test_january_rolls_back_to_previous_december(
         self,
-        freeze_now: Callable[[datetime], None],
+        freeze_clock: Callable[..., None],
         make_client: Callable[..., Any],
     ) -> None:
         """In January the previous period is December of the year before."""
-        freeze_now(datetime(2026, 1, 10, 9, 0, 0))
+        freeze_clock(water, datetime(2026, 1, 10, 9, 0, 0))
         client, transport = make_client(
             build_responses(
                 sld_hst=[{"prd_id": 2512, "chrg": 300_000, "corr": None}],
