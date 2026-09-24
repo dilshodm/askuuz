@@ -9,6 +9,7 @@ from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from ..base_coordinator import BaseASKUCoordinator, TOKEN_TTL
 from ..api.management import ManagementApiClient
+from ..api.normalize_management import normalize_gas, normalize_management
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -108,7 +109,7 @@ class ManagementDataUpdateCoordinator(BaseASKUCoordinator):
         return data
 
     # ------------------------------------------------------------------
-    # Management normalization
+    # Normalization (lives in the API layer, see api/normalize_management.py)
     # ------------------------------------------------------------------
 
     def _normalize_management(
@@ -118,105 +119,13 @@ class ManagementDataUpdateCoordinator(BaseASKUCoordinator):
         last_month: int,
         last_month_year: int,
     ) -> dict[str, Any]:
-        balance = dashboard["balance"] * -1
-        my_area = dashboard["my_area"]
-        tariff = float(dashboard["price"])
-        accrual = tariff * my_area
-
-        last_payment = dashboard["payments"][0] if dashboard.get("payments") else None
-
-        last_month_item = next(
-            (
-                x
-                for x in accruals.get("current", [])
-                if x["month"] == last_month and x["year"] == last_month_year
-            ),
-            None,
+        return normalize_management(
+            dashboard,
+            accruals,
+            self._account_id,
+            last_month,
+            last_month_year,
         )
 
-        data = {
-            "account_id": self._account_id,
-            "current_period": datetime.now().strftime("%Y-%m"),
-            "balance": balance,
-            "consumption": my_area,
-            "accrual": accrual,
-            "last_payment": (
-                {
-                    "amount": float(last_payment["payment_amount"]),
-                    "date": last_payment["payment_date"],
-                }
-                if last_payment
-                else None
-            ),
-            "data": {
-                "current_month": {
-                    "consumption": my_area,
-                    "accrual": accrual,
-                },
-                "last_month": (
-                    {
-                        "period": f"{last_month_year}-{str(last_month).zfill(2)}",
-                        "consumption": my_area,
-                        "accrual": float(last_month_item["monthly_accrual"]),
-                        "tariffs": [
-                            {
-                                "tariff": float(last_month_item["monthly_accrual"]) / my_area,
-                                "consumption": my_area,
-                                "accrual": float(last_month_item["monthly_accrual"]),
-                            }
-                        ],
-                    }
-                    if last_month_item
-                    else None
-                ),
-            },
-        }
-
-        return data
-
-    # ------------------------------------------------------------------
-    # GAS normalization (isolated, bottom)
-    # ------------------------------------------------------------------
-
     def _normalize_gas(self, raw: dict[str, Any]) -> dict[str, Any]:
-        # обязательная защита
-        if raw.get("customer_code") != self._gas_account_id:
-            raise ValueError("Gas account mismatch")
-
-        inter = raw.get("interraction") or []
-        if not inter:
-            raise ValueError("Gas interraction empty")
-
-        current = inter[0]
-        last = inter[1] if len(inter) > 1 else None
-
-        def _period(val: str) -> str:
-            m, y = val.split(".")
-            return f"{y}-{m.zfill(2)}"
-
-        return {
-            "account_id": self._gas_account_id,
-            "current_period": _period(current["period"]),
-            "balance": abs(raw.get("current_balance", 0)),
-            "consumption": current.get("gas_consume"),
-            "accrual": current.get("accrual"),
-            "last_payment": {
-                "amount": raw.get("last_payment_sum"),
-                "date": raw.get("last_payment_date"),
-            },
-            "data": {
-                "current_month": {
-                    "consumption": current.get("gas_consume"),
-                    "accrual": current.get("accrual"),
-                },
-                "last_month": (
-                    {
-                        "period": _period(last["period"]),
-                        "consumption": last.get("gas_consume"),
-                        "accrual": last.get("accrual"),
-                    }
-                    if last
-                    else None
-                ),
-            },
-        }
+        return normalize_gas(raw, self._gas_account_id)

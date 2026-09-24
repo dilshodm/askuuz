@@ -28,11 +28,13 @@ class FakeTransport:
         """Store the canned responses keyed by request path."""
         self._responses = responses
         self.calls: list[tuple[str, dict[str, Any] | None]] = []
+        self.requests: list[dict[str, Any]] = []
 
     async def __call__(self, *, method: str, path: str, **kwargs: Any) -> Any:
         """Record the call and return the canned response for ``path``."""
         body = kwargs.get("json")
         self.calls.append((path, body))
+        self.requests.append({"method": method, "path": path, **kwargs})
 
         if path not in self._responses:
             raise AssertionError(f"unexpected request to {path}")
@@ -44,23 +46,23 @@ class FakeTransport:
 
 
 @pytest.fixture
-def freeze_now(monkeypatch: pytest.MonkeyPatch) -> Callable[[datetime], None]:
-    """Return a helper pinning ``datetime.now()`` inside ``api.water``.
+def freeze_clock(monkeypatch: pytest.MonkeyPatch) -> Callable[[Any, datetime], None]:
+    """Return a helper pinning ``datetime.now()`` inside a given API module.
 
-    The client derives the current and previous period ids from the wall
+    Several clients derive the current and previous period from the wall
     clock, so every assertion about periods needs a fixed moment.
     """
 
-    def _freeze(moment: datetime) -> None:
+    def _freeze(module: Any, moment: datetime) -> None:
         class _FrozenClock:
-            """Stands in for the ``datetime`` class; ``now()`` is all the client calls."""
+            """Stands in for the ``datetime`` class; ``now()`` is all they call."""
 
             @staticmethod
             def now(tz: Any = None) -> datetime:
                 """Return the pinned moment, ignoring the timezone argument."""
                 return moment
 
-        monkeypatch.setattr(water, "datetime", _FrozenClock)
+        monkeypatch.setattr(module, "datetime", _FrozenClock)
 
     return _freeze
 
@@ -79,5 +81,15 @@ def make_client() -> Callable[..., tuple[water.WaterApiClient, FakeTransport]]:
         transport = FakeTransport(responses)
         client._request = transport  # type: ignore[method-assign]
         return client, transport
+
+    return _make
+
+
+@pytest.fixture
+def make_transport() -> Callable[[dict[str, Any]], FakeTransport]:
+    """Return a factory building a :class:`FakeTransport` over canned responses."""
+
+    def _make(responses: dict[str, Any]) -> FakeTransport:
+        return FakeTransport(responses)
 
     return _make
