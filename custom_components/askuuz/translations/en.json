@@ -48,6 +48,7 @@
         "electricity": "Electricity",
         "water": "Water supply",
         "tbo": "Waste removal",
+        "gas": "Gas supply",
         "management": "Management company"
       }
     }

@@ -3,20 +3,19 @@ from __future__ import annotations
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.selector import SelectSelector, SelectSelectorConfig
 
-from .const import DOMAIN
-from .api.electricity import ElectricityApiClient
-from .api.water import WaterApiClient
-from .api.tbo import TboApiClient
-from .api.management import ManagementApiClient
 from .api.base import AuthError, is_transient
+from .api.electricity import ElectricityApiClient
+from .api.management import ManagementApiClient
+from .api.tbo import TboApiClient
+from .api.water import WaterApiClient
+from .const import DOMAIN
 
 
 class ASKUUZConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -68,7 +67,7 @@ class ASKUUZConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 token = await api.login(pid=username, pin=password)
                 ok = isinstance(token, str) and len(token) > 0
 
-            elif service == "management":
+            elif service in ("management", "gas"):
                 api = ManagementApiClient(session=session)
                 result = await api.login(username, password)
                 ok = "access_token" in result and "yandex_token" in result
@@ -112,6 +111,40 @@ class ASKUUZConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return vol.Schema(schema)
 
     # ------------------------------------------------------------------
+    # Duplicate detection
+    # ------------------------------------------------------------------
+
+    def _is_already_configured(self, username: str, account_id: str) -> bool:
+        """Whether this service and account are configured already.
+
+        A gas account can arrive two ways — as its own entry, or as the gas
+        extension of a management entry — so those two are checked against
+        each other as well.
+        """
+        for entry in self.hass.config_entries.async_entries(DOMAIN):
+            service = entry.data.get("service")
+
+            if (
+                service == self._service
+                and entry.data.get("username") == username
+                and entry.data.get("account_id") == account_id
+            ):
+                return True
+
+            # the same meter, added the other way round
+            if self._service == "gas" and entry.data.get("gas_account_id") == account_id:
+                return True
+
+        return False
+
+    def _gas_account_taken(self, gas_account_id: str) -> bool:
+        """Whether a standalone gas entry already covers this meter."""
+        return any(
+            entry.data.get("service") == "gas" and entry.data.get("account_id") == gas_account_id
+            for entry in self.hass.config_entries.async_entries(DOMAIN)
+        )
+
+    # ------------------------------------------------------------------
     # Steps
     # ------------------------------------------------------------------
 
@@ -123,7 +156,7 @@ class ASKUUZConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     {
                         vol.Required("service"): SelectSelector(
                             SelectSelectorConfig(
-                                options=["electricity", "water", "tbo", "management"],
+                                options=["electricity", "water", "tbo", "gas", "management"],
                                 mode="dropdown",
                                 translation_key="service",
                             )
@@ -171,17 +204,12 @@ class ASKUUZConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         }
 
         # One configuration per service + username + account
-        for entry in self.hass.config_entries.async_entries(DOMAIN):
-            if (
-                entry.data.get("service") == self._service
-                and entry.data.get("username") == user_input["username"]
-                and entry.data.get("account_id") == user_input["account_id"]
-            ):
-                return self.async_show_form(
-                    step_id="credentials",
-                    data_schema=self._credentials_schema(user_input),
-                    errors={"base": "already_configured"},
-                )
+        if self._is_already_configured(user_input["username"], user_input["account_id"]):
+            return self.async_show_form(
+                step_id="credentials",
+                data_schema=self._credentials_schema(user_input),
+                errors={"base": "already_configured"},
+            )
 
         if self._service != "management" or not user_input.get("enable_gas"):
             return self._create_entry(self._data)
@@ -195,6 +223,13 @@ class ASKUUZConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 step_id="gas",
                 data_schema=vol.Schema({vol.Required("gas_account_id"): str}),
                 errors={} if user_input is None else {"base": "invalid_gas_account"},
+            )
+
+        if self._gas_account_taken(user_input["gas_account_id"]):
+            return self.async_show_form(
+                step_id="gas",
+                data_schema=vol.Schema({vol.Required("gas_account_id"): str}),
+                errors={"base": "already_configured"},
             )
 
         self._data["gas_account_id"] = user_input["gas_account_id"]
