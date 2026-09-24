@@ -6,6 +6,21 @@ from typing import Any
 import aiohttp
 
 
+def as_number(value: Any, default: float = 0.0) -> float:
+    """Return ``value`` as a number, treating ``None`` as ``default``.
+
+    Every ASKU backend sends ``null`` instead of ``0`` for amounts that do not
+    apply: a correction that was never issued, a payment that was never made, a
+    volume that was never metered. Arithmetic on those values raises
+    ``TypeError``, so numeric fields coming from an API have to pass through
+    here before they are used. Note that ``dict.get(key, 0)`` does not help —
+    the key is present, its value is ``null``.
+    """
+    if value is None:
+        return default
+    return float(value)
+
+
 class ApiError(Exception):
     """Base API error."""
 

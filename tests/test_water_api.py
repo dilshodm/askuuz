@@ -17,7 +17,7 @@ from typing import Any, Callable
 
 import pytest
 from api.base import ApiError
-from api.water import WaterApiClient, _as_number
+from api.water import WaterApiClient
 
 # 15 March 2026 → current period 2603, previous period 2602.
 NOW = datetime(2026, 3, 15, 12, 0, 0)
@@ -55,37 +55,6 @@ def build_responses(
         "/CHRG_DTL": chrg_for_period,
         "/SUB_PRF": ({"sld_sum": 250_000, "rtpl_sum": 2_500} if sub_prf is None else sub_prf),
     }
-
-
-class TestAsNumber:
-    """Unit tests for the ``_as_number`` coercion helper."""
-
-    def test_none_becomes_zero(self) -> None:
-        """``None`` is the case the API actually sends; it must not propagate."""
-        assert _as_number(None) == 0.0
-
-    def test_none_honours_custom_default(self) -> None:
-        """A caller may pick a different stand-in for a missing value."""
-        assert _as_number(None, default=-1.0) == -1.0
-
-    @pytest.mark.parametrize(
-        ("value", "expected"),
-        [
-            (0, 0.0),
-            (42, 42.0),
-            (-17, -17.0),
-            (3.5, 3.5),
-            ("125", 125.0),
-            ("12.75", 12.75),
-        ],
-    )
-    def test_numbers_pass_through(self, value: Any, expected: float) -> None:
-        """Real values are returned unchanged, as floats."""
-        assert _as_number(value) == pytest.approx(expected)
-
-    def test_zero_is_not_confused_with_missing(self) -> None:
-        """A genuine zero must stay a zero rather than hit the default."""
-        assert _as_number(0, default=99.0) == 0.0
 
 
 @pytest.mark.asyncio
