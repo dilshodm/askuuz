@@ -38,7 +38,7 @@ class ElectricityDataUpdateCoordinator(BaseASKUCoordinator):
                 },
             )
         except Exception as err:
-            raise ConfigEntryAuthFailed from err
+            raise self._login_error(err) from err
 
         try:
             self._token = response["data"]["accessToken"]
