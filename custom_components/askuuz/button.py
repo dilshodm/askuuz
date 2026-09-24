@@ -34,6 +34,12 @@ async def async_setup_entry(
         await tbo_setup(hass, entry, async_add_entities)
         return
 
+    elif service == "gas":
+        from .gas.button import async_setup_entry as gas_setup
+
+        await gas_setup(hass, entry, async_add_entities)
+        return
+
     elif service == "management":
         from .management.button import async_setup_entry as management_setup
 
@@ -41,6 +47,4 @@ async def async_setup_entry(
         return
 
     # Safety fallback — should never happen if config_flow is correct
-    raise ValueError(
-        f"Unsupported service type '{service}' for {DOMAIN} integration"
-    )
+    raise ValueError(f"Unsupported service type '{service}' for {DOMAIN} integration")

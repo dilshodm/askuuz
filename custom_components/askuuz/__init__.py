@@ -6,11 +6,11 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv
 
 from .const import DOMAIN
-
 from .electricity.coordinator import ElectricityDataUpdateCoordinator
-from .water.coordinator import WaterDataUpdateCoordinator
-from .tbo.coordinator import TboDataUpdateCoordinator
+from .gas.coordinator import GasDataUpdateCoordinator
 from .management.coordinator import ManagementDataUpdateCoordinator
+from .tbo.coordinator import TboDataUpdateCoordinator
+from .water.coordinator import WaterDataUpdateCoordinator
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -25,15 +25,15 @@ REFRESH_DATA_SCHEMA = vol.Schema(
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     hass.data.setdefault(DOMAIN, {})
-    
+
     async def handle_refresh_data(call: ServiceCall) -> None:
         """Handle refresh data service call.
-        
+
         If entry_id is provided, refresh only that configuration.
         If entry_id is not provided, refresh all configurations.
         """
         entry_id = call.data.get("entry_id")
-        
+
         if entry_id:
             # Refresh specific configuration
             if entry_id in hass.data.get(DOMAIN, {}):
@@ -43,14 +43,14 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
             # Refresh all configurations
             for coordinator in hass.data.get(DOMAIN, {}).values():
                 await coordinator.async_request_refresh()
-    
+
     hass.services.async_register(
         DOMAIN,
         SERVICE_REFRESH_DATA,
         handle_refresh_data,
         schema=REFRESH_DATA_SCHEMA,
     )
-    
+
     return True
 
 
@@ -94,6 +94,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             password=entry.data["password"],
             account_id=entry.data["account_id"],
         )
+    # -------------------------------------------------
+    # GAS (standalone, no management contract needed)
+    # -------------------------------------------------
+    elif service == "gas":
+        coordinator = GasDataUpdateCoordinator(
+            hass,
+            entry_id=entry.entry_id,
+            username=entry.data["username"],
+            password=entry.data["password"],
+            account_id=entry.data["account_id"],
+        )
+
     # -------------------------------------------------
     # MANAGEMENT
     # -------------------------------------------------
