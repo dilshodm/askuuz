@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 from datetime import datetime
 
-from .base import BaseApiClient, ApiError
+from .base import ApiError, BaseApiClient, as_number
 
 
 class TboApiClient(BaseApiClient):
@@ -82,15 +82,13 @@ class TboApiClient(BaseApiClient):
         )
 
         if house is None:
-            raise ApiError(
-                f"ASKUT house with accountNumber={account_id} not found"
-            )
+            raise ApiError(f"ASKUT house with accountNumber={account_id} not found")
 
         try:
             resident_id = house["id"]
-            rate = float(house["rate"])
-            people = int(house["inhabitantCount"])
-            api_balance = float(house["balance"])
+            rate = as_number(house.get("rate"))
+            people = int(as_number(house.get("inhabitantCount")))
+            api_balance = as_number(house.get("balance"))
         except (KeyError, TypeError, ValueError) as exc:
             raise ApiError("Invalid ASKUT house fields") from exc
 
@@ -136,7 +134,7 @@ class TboApiClient(BaseApiClient):
         try:
             item = payments["content"][0]
             last_payment = {
-                "amount": float(item["amount"]),
+                "amount": as_number(item["amount"]),
                 "date": item["dateTime"][:10],
             }
         except (KeyError, IndexError, TypeError):
@@ -157,7 +155,7 @@ class TboApiClient(BaseApiClient):
         try:
             for row in stats:
                 if row.get("period") == last_period_api:
-                    last_month_accrual = float(row["accrual"])
+                    last_month_accrual = as_number(row.get("accrual"), last_month_accrual)
                     break
         except (TypeError, ValueError):
             pass
@@ -169,13 +167,10 @@ class TboApiClient(BaseApiClient):
         return {
             "account_id": account_id,
             "current_period": current_period,
-
             "balance": balance,
             "consumption": people,
             "accrual": accrual_current,
-
             "last_payment": last_payment,
-
             "data": {
                 "current_month": {
                     "consumption": people,

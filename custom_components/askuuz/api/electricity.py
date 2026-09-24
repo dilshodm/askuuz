@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .base import BaseApiClient, ApiError
+from .base import ApiError, BaseApiClient, as_number
 
 
 class ElectricityApiClient(BaseApiClient):
@@ -77,17 +77,21 @@ class ElectricityApiClient(BaseApiClient):
             result: dict[str, Any] = {
                 "account_id": account_id,
                 "current_period": data["currentPeriod"][:7],
-                "balance": float(data["balance"]) / 100,
-                "consumption": float(data["currentMonthCalcKwh"]) / 1000,
-                "accrual": float(data["currentMonthCalcSum"]) / 100,
-                "last_payment": {
-                    "amount": float(data["lastPayment"]) / 100,
-                    "date": data["lastPaymentDate"],
-                },
+                "balance": as_number(data["balance"]) / 100,
+                "consumption": as_number(data["currentMonthCalcKwh"]) / 1000,
+                "accrual": as_number(data["currentMonthCalcSum"]) / 100,
+                "last_payment": (
+                    {
+                        "amount": as_number(data["lastPayment"]) / 100,
+                        "date": data.get("lastPaymentDate"),
+                    }
+                    if data.get("lastPayment") is not None
+                    else None
+                ),
                 "data": {
                     "current_month": {
-                        "consumption": float(data["currentMonthCalcKwh"]) / 1000,
-                        "accrual": float(data["currentMonthCalcSum"]) / 100,
+                        "consumption": as_number(data["currentMonthCalcKwh"]) / 1000,
+                        "accrual": as_number(data["currentMonthCalcSum"]) / 100,
                     }
                 },
             }
@@ -111,17 +115,17 @@ class ElectricityApiClient(BaseApiClient):
 
                 monthly_block = {
                     "period": month_data["period"][:7],
-                    "consumption": float(month_data["totalCalcKwh"]) / 1000,
-                    "accrual": float(month_data["totalSum"]) / 100,
+                    "consumption": as_number(month_data["totalCalcKwh"]) / 1000,
+                    "accrual": as_number(month_data["totalSum"]) / 100,
                     "tariffs": [],
                 }
 
                 for t in month_data.get("newMonthlyTariffAndSpendedKwhs") or []:
                     monthly_block["tariffs"].append(
                         {
-                            "tariff": float(t["tarifPrice"]) / 100,
-                            "consumption": float(t["consumedKwh"]) / 1000,
-                            "accrual": float(t["totalSumByTariff"]) / 100,
+                            "tariff": as_number(t["tarifPrice"]) / 100,
+                            "consumption": as_number(t["consumedKwh"]) / 1000,
+                            "accrual": as_number(t["totalSumByTariff"]) / 100,
                         }
                     )
 
@@ -130,6 +134,4 @@ class ElectricityApiClient(BaseApiClient):
             return result
 
         except (KeyError, TypeError, ValueError) as exc:
-            raise ApiError(
-                "Failed to parse electricity consumer-state data"
-            ) from exc
+            raise ApiError("Failed to parse electricity consumer-state data") from exc
