@@ -1,6 +1,5 @@
 {
   "title": "ASKU Uzbekistan Utilities",
-
   "config": {
     "step": {
       "user": {
@@ -23,16 +22,26 @@
         "data": {
           "gas_account_id": "Лицевой счёт газа"
         }
+      },
+      "reauth_confirm": {
+        "title": "Повторная авторизация",
+        "description": "Срок действия пароля для «{username}» истёк или он был изменён. Введите пароль заново.",
+        "data": {
+          "password": "Пароль"
+        }
       }
     },
     "error": {
       "invalid_auth": "Неверный логин или пароль",
       "already_configured": "Запись с такой услугой, логином и лицевым счётом уже существует",
       "invalid_gas_account": "Неверный лицевой счёт газа",
-      "unknown": "Неизвестная ошибка"
+      "unknown": "Неизвестная ошибка",
+      "cannot_connect": "Не удалось подключиться к сервису. Проверьте интернет и попробуйте позже"
+    },
+    "abort": {
+      "reauth_successful": "Авторизация обновлена"
     }
   },
-
   "selector": {
     "service": {
       "options": {
@@ -43,7 +52,6 @@
       }
     }
   },
-
   "entity": {
     "sensor": {
       "consumption": {

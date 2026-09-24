@@ -1,6 +1,5 @@
 {
   "title": "ASKU Uzbekistan Utilities",
-
   "config": {
     "step": {
       "user": {
@@ -23,16 +22,26 @@
         "data": {
           "gas_account_id": "Gas account ID"
         }
+      },
+      "reauth_confirm": {
+        "title": "Re-authentication",
+        "description": "The password for “{username}” no longer works. Please enter it again.",
+        "data": {
+          "password": "Password"
+        }
       }
     },
     "error": {
       "invalid_auth": "Invalid username or password",
       "already_configured": "Configuration with this service, username and account ID already exists",
       "invalid_gas_account": "Invalid gas account ID",
-      "unknown": "Unknown error"
+      "unknown": "Unknown error",
+      "cannot_connect": "Could not reach the service. Check your connection and try again later"
+    },
+    "abort": {
+      "reauth_successful": "Re-authentication successful"
     }
   },
-
   "selector": {
     "service": {
       "options": {
@@ -43,7 +52,6 @@
       }
     }
   },
-
   "entity": {
     "sensor": {
       "consumption": {
@@ -54,10 +62,12 @@
       },
       "balance": {
         "name": "Balance"
-      }    },
+      }
+    },
     "button": {
       "refresh_data": {
         "name": "Refresh data"
-      }    }
+      }
+    }
   }
 }
