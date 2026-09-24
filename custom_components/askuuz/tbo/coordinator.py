@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from homeassistant.exceptions import ConfigEntryAuthFailed
 
 from ..base_coordinator import BaseASKUCoordinator, TOKEN_TTL
 from ..api.tbo import TboApiClient
@@ -29,7 +28,7 @@ class TboDataUpdateCoordinator(BaseASKUCoordinator):
                 pin=self._password,
             )
         except Exception as err:
-            raise ConfigEntryAuthFailed from err
+            raise self._login_error(err) from err
 
         self._token = token
         # API не отдаёт expires → берём запас, как в electricity

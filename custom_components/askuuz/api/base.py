@@ -14,6 +14,19 @@ class AuthError(ApiError):
     """Authentication failed."""
 
 
+class TransientApiError(ApiError):
+    """A temporary transport problem: timeout, connection error, 5xx.
+
+    Distinguished from :class:`AuthError` so a network blip is retried instead
+    of being reported to Home Assistant as bad credentials.
+    """
+
+
+def is_transient(err: BaseException) -> bool:
+    """Whether ``err`` is a temporary transport problem rather than a refusal."""
+    return isinstance(err, (TransientApiError, aiohttp.ClientError, asyncio.TimeoutError))
+
+
 class BaseApiClient:
     def __init__(
         self,
@@ -49,19 +62,21 @@ class BaseApiClient:
                 json=json,
                 params=params,
             ) as response:
-                if response.status == 401:
-                    raise AuthError("Unauthorized")
+                if response.status in (401, 403):
+                    raise AuthError(f"API error {response.status}: unauthorized")
+
+                if response.status >= 500:
+                    text = await response.text()
+                    raise TransientApiError(f"API error {response.status}: {text}")
 
                 if response.status >= 400:
                     text = await response.text()
-                    raise ApiError(
-                        f"API error {response.status}: {text}"
-                    )
+                    raise ApiError(f"API error {response.status}: {text}")
 
                 return await response.json()
 
         except asyncio.TimeoutError as exc:
-            raise ApiError("Request timeout") from exc
+            raise TransientApiError("Request timeout") from exc
 
         except aiohttp.ClientError as exc:
-            raise ApiError("HTTP client error") from exc
+            raise TransientApiError("HTTP client error") from exc

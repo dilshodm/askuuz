@@ -12,6 +12,8 @@ from homeassistant.helpers.update_coordinator import (
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.exceptions import ConfigEntryAuthFailed
 
+from .api.base import is_transient
+
 _LOGGER = logging.getLogger(__name__)
 
 UPDATE_INTERVAL = timedelta(hours=12)
@@ -76,6 +78,18 @@ class BaseASKUCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _login(self) -> None:
         """Service-specific login. MUST set token + expires."""
         raise NotImplementedError
+
+    @staticmethod
+    def _login_error(err: Exception) -> Exception:
+        """Map a login failure onto the right Home Assistant error.
+
+        Only a refusal by the service means the credentials are wrong. A
+        timeout or a 5xx is temporary: reporting it as an auth failure sends
+        the entry into reauth, where it stays until the user intervenes.
+        """
+        if is_transient(err):
+            return UpdateFailed(f"Login failed temporarily: {err}")
+        return ConfigEntryAuthFailed(str(err))
 
     # ---------------------------------------------------------------------
     # Update flow (ЕДИНСТВЕННЫЙ вход)

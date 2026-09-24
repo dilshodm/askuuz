@@ -6,7 +6,6 @@ from typing import Any
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import UpdateFailed
-from homeassistant.exceptions import ConfigEntryAuthFailed
 
 from ..base_coordinator import BaseASKUCoordinator, TOKEN_TTL
 from ..api.management import ManagementApiClient
@@ -52,8 +51,7 @@ class ManagementDataUpdateCoordinator(BaseASKUCoordinator):
         try:
             result = await self._api.login(self._username, self._password)
         except Exception as err:
-            # неверный логин / пароль
-            raise ConfigEntryAuthFailed from err
+            raise self._login_error(err) from err
 
         self._token = result["access_token"]
         self._yandex_token = result["yandex_token"]
@@ -125,9 +123,7 @@ class ManagementDataUpdateCoordinator(BaseASKUCoordinator):
         tariff = float(dashboard["price"])
         accrual = tariff * my_area
 
-        last_payment = (
-            dashboard["payments"][0] if dashboard.get("payments") else None
-        )
+        last_payment = dashboard["payments"][0] if dashboard.get("payments") else None
 
         last_month_item = next(
             (
@@ -164,14 +160,9 @@ class ManagementDataUpdateCoordinator(BaseASKUCoordinator):
                         "accrual": float(last_month_item["monthly_accrual"]),
                         "tariffs": [
                             {
-                                "tariff": float(
-                                    last_month_item["monthly_accrual"]
-                                )
-                                / my_area,
+                                "tariff": float(last_month_item["monthly_accrual"]) / my_area,
                                 "consumption": my_area,
-                                "accrual": float(
-                                    last_month_item["monthly_accrual"]
-                                ),
+                                "accrual": float(last_month_item["monthly_accrual"]),
                             }
                         ],
                     }

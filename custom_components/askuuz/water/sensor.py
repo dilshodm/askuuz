@@ -12,7 +12,6 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .coordinator import WaterDataUpdateCoordinator
 from ..const import DOMAIN
 
-
 SENSORS = {
     "consumption": {
         "device_class": SensorDeviceClass.WATER,
@@ -33,7 +32,7 @@ SENSORS = {
 
 async def async_setup_entry(hass, entry: ConfigEntry, async_add_entities) -> None:
     coordinator: WaterDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    account_id = coordinator.data["account_id"]
+    account_id = entry.data["account_id"]
 
     device_info = DeviceInfo(
         identifiers={(DOMAIN, f"water_{account_id}")},
@@ -56,9 +55,7 @@ async def async_setup_entry(hass, entry: ConfigEntry, async_add_entities) -> Non
     async_add_entities(entities, update_before_add=False)
 
 
-class ASKUWaterSensor(
-    CoordinatorEntity[WaterDataUpdateCoordinator], SensorEntity
-):
+class ASKUWaterSensor(CoordinatorEntity[WaterDataUpdateCoordinator], SensorEntity):
     _attr_has_entity_name = True
 
     def __init__(self, coordinator, entry, device_info, key, cfg):
@@ -72,7 +69,7 @@ class ASKUWaterSensor(
         self._attr_state_class = cfg.get("state_class")
         self._attr_native_unit_of_measurement = cfg.get("unit")
 
-        account_id = coordinator.data["account_id"]
+        account_id = entry.data["account_id"]
         self._attr_unique_id = f"{DOMAIN}_water_{account_id}_{key}"
         self._attr_device_info = device_info
 

@@ -11,7 +11,6 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .coordinator import ManagementDataUpdateCoordinator
 from ..const import DOMAIN
 
-
 SENSORS = {
     "consumption": {
         "unit": "m²",
@@ -30,7 +29,7 @@ SENSORS = {
 
 async def async_setup_entry(hass, entry: ConfigEntry, async_add_entities) -> None:
     coordinator: ManagementDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    account_id = coordinator.data["account_id"]
+    account_id = entry.data["account_id"]
 
     device_info = DeviceInfo(
         identifiers={(DOMAIN, f"management_{account_id}")},
@@ -42,6 +41,7 @@ async def async_setup_entry(hass, entry: ConfigEntry, async_add_entities) -> Non
     entities = [
         ASKUMgmtSensor(
             coordinator,
+            account_id,
             device_info,
             key,
             cfg,
@@ -58,7 +58,7 @@ class ASKUMgmtSensor(
 ):
     _attr_has_entity_name = True
 
-    def __init__(self, coordinator, device_info, key, cfg):
+    def __init__(self, coordinator, account_id, device_info, key, cfg):
         super().__init__(coordinator)
 
         self._key = key
@@ -68,7 +68,6 @@ class ASKUMgmtSensor(
         self._attr_device_class = cfg.get("device_class")
         self._attr_native_unit_of_measurement = cfg.get("unit")
 
-        account_id = coordinator.data["account_id"]
         self._attr_unique_id = f"{DOMAIN}_management_{account_id}_{key}"
         self._attr_device_info = device_info
 

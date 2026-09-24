@@ -1,6 +1,5 @@
 {
   "title": "ASKU O‘zbekiston Kommunal Xizmatlari",
-
   "config": {
     "step": {
       "user": {
@@ -23,14 +22,26 @@
         "data": {
           "gas_account_id": "Gaz shaxsiy hisobi"
         }
+      },
+      "reauth_confirm": {
+        "title": "Qayta avtorizatsiya",
+        "description": "“{username}” uchun parol endi ishlamayapti. Parolni qaytadan kiriting.",
+        "data": {
+          "password": "Parol"
+        }
       }
     },
     "error": {
-      "invalid_auth": "Login yoki parol noto‘g‘ri",      "already_configured": "Ushbu xizmat, login va shaxsiy hisob bilan konfiguratsiya allaqachon mavjud",      "invalid_gas_account": "Gaz shaxsiy hisobi noto‘g‘ri",
-      "unknown": "Noma’lum xatolik"
+      "invalid_auth": "Login yoki parol noto‘g‘ri",
+      "already_configured": "Ushbu xizmat, login va shaxsiy hisob bilan konfiguratsiya allaqachon mavjud",
+      "invalid_gas_account": "Gaz shaxsiy hisobi noto‘g‘ri",
+      "unknown": "Noma’lum xatolik",
+      "cannot_connect": "Xizmatga ulanib bo'lmadi. Internetni tekshiring va keyinroq urinib ko'ring"
+    },
+    "abort": {
+      "reauth_successful": "Avtorizatsiya yangilandi"
     }
   },
-
   "selector": {
     "service": {
       "options": {
@@ -41,7 +52,6 @@
       }
     }
   },
-
   "entity": {
     "sensor": {
       "consumption": {
@@ -52,10 +62,12 @@
       },
       "balance": {
         "name": "Balans"
-      }    },
+      }
+    },
     "button": {
       "refresh_data": {
         "name": "Ma'lumotlarni yangilash"
-      }    }
+      }
+    }
   }
 }

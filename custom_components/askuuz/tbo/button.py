@@ -18,7 +18,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up button entities for TBO service."""
     coordinator: TboDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
-    account_id = coordinator.data["account_id"]
+    account_id = entry.data["account_id"]
 
     device_info = DeviceInfo(
         identifiers={(DOMAIN, f"tbo_{account_id}")},
@@ -39,9 +39,7 @@ async def async_setup_entry(
     )
 
 
-class RefreshDataButton(
-    CoordinatorEntity[TboDataUpdateCoordinator], ButtonEntity
-):
+class RefreshDataButton(CoordinatorEntity[TboDataUpdateCoordinator], ButtonEntity):
     """Button to refresh TBO data."""
 
     _attr_has_entity_name = True
@@ -53,7 +51,7 @@ class RefreshDataButton(
         self._entry = entry
         self._attr_device_info = device_info
 
-        account_id = coordinator.data["account_id"]
+        account_id = entry.data["account_id"]
         self._attr_unique_id = f"{DOMAIN}_tbo_{account_id}_refresh"
 
     async def async_press(self) -> None:
